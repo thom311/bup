@@ -34,16 +34,27 @@ class OsFile:
 
 
 _IFMT = stat.S_IFMT(0xffffffff)  # avoid function call in inner loop
-def _dirlist():
+def _dirlist(prepend, excluded_paths=None, exclude_rxs=None):
     l = []
     for n in os.listdir('.'):
+        # Check for excluded_paths before calling lstat, because the check is done
+        # without a trailing slash.
+        if excluded_paths and os.path.normpath(prepend+n) in excluded_paths:
+            debug1('Skipping %r: excluded.\n' % (prepend+n))
+            continue
+
         try:
             st = xstat.lstat(n)
         except OSError, e:
-            add_error(Exception('%s: %s' % (realpath(n), str(e))))
+            if not (exclude_rxs and should_rx_exclude_path(prepend+n, exclude_rxs)):
+                add_error(Exception('%s: %s' % (realpath(n), str(e))))
             continue
         if (st.st_mode & _IFMT) == stat.S_IFDIR:
             n += '/'
+        # Cannot check for exclude_rxs before calling lstat, because
+        # a trailing '/' must be appended to directory names.
+        if exclude_rxs and should_rx_exclude_path(prepend+n, exclude_rxs):
+            continue
         l.append((n,st))
     l.sort(reverse=True)
     return l
@@ -52,34 +63,27 @@ def _dirlist():
 def _recursive_dirlist(prepend, xdev, bup_dir=None,
                        excluded_paths=None,
                        exclude_rxs=None):
-    for (name,pst) in _dirlist():
+    for (name,pst) in _dirlist(prepend, excluded_paths, exclude_rxs):
         path = prepend + name
-        if excluded_paths:
-            if os.path.normpath(path) in excluded_paths:
-                debug1('Skipping %r: excluded.\n' % path)
-                continue
-        if exclude_rxs and should_rx_exclude_path(path, exclude_rxs):
-            continue
         if name.endswith('/'):
-            if xdev != None and pst.st_dev != xdev:
-                debug1('Skipping %r: different filesystem.\n' % (prepend+name))
+            if xdev is not None and pst.st_dev != xdev:
+                debug1('Skipping %r: different filesystem.\n' % (path))
                 continue
-            if bup_dir != None:
-                if os.path.normpath(prepend+name) == bup_dir:
-                    debug1('Skipping BUP_DIR.\n')
-                    continue
+            if bup_dir is not None and os.path.normpath(path) == bup_dir:
+                debug1('Skipping BUP_DIR.\n')
+                continue
             try:
                 OsFile(name).fchdir()
             except OSError, e:
                 add_error('%s: %s' % (prepend, e))
             else:
-                for i in _recursive_dirlist(prepend=prepend+name, xdev=xdev,
+                for i in _recursive_dirlist(prepend=path, xdev=xdev,
                                             bup_dir=bup_dir,
                                             excluded_paths=excluded_paths,
                                             exclude_rxs=exclude_rxs):
                     yield i
                 os.chdir('..')
-        yield (prepend + name, pst)
+        yield (path, pst)
 
 
 def recursive_dirlist(paths, xdev, bup_dir=None, excluded_paths=None,
