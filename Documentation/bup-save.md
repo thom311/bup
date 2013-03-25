@@ -119,6 +119,10 @@ handling of metadata.
     9 is the highest and 0 is no compression).  The default
     is 1 (fast, loose compression)
 
+\--suppress-warning-for-xattrs
+:   do not warn about errors when reading the extended attributes
+    of a path.
+
 
 # EXAMPLE
 

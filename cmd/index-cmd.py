@@ -62,7 +62,7 @@ def clear_index(indexfile):
                 raise
 
 
-def update_index(top, excluded_paths):
+def update_index(top, excluded_paths, suppress_warning_for_xattr=False):
     # tmax and start must be epoch nanoseconds.
     tmax = (time.time() - 1) * 10**9
     ri = index.Reader(indexfile)
@@ -103,7 +103,7 @@ def update_index(top, excluded_paths):
                 hlinks.del_path(rig.cur.name)
             if not stat.S_ISDIR(pst.st_mode) and pst.st_nlink > 1:
                 hlinks.add_path(path, pst.st_dev, pst.st_ino)
-            meta = metadata.from_path(path, statinfo=pst)
+            meta = metadata.from_path(path, statinfo=pst, suppress_warning_for_xattr=suppress_warning_for_xattr)
             # Clear these so they don't bloat the store -- they're
             # already in the index (since they vary a lot and they're
             # fixed length).  If you've noticed "tmax", you might
@@ -129,7 +129,7 @@ def update_index(top, excluded_paths):
             rig.cur.repack()
             rig.next()
         else:  # new paths
-            meta = metadata.from_path(path, statinfo=pst)
+            meta = metadata.from_path(path, statinfo=pst, suppress_warning_for_xattr=suppress_warning_for_xattr)
             # See same assignment to 0, above, for rationale.
             meta.atime = meta.mtime = meta.ctime = 0
             meta_ofs = msw.store(meta)
@@ -190,6 +190,7 @@ exclude-from= a file that contains exclude paths (can be used more than once)
 exclude-rx= skip paths that match the unanchored regular expression
 v,verbose  increase log output (can be used more than once)
 x,xdev,one-file-system  don't cross filesystem boundaries
+suppress-warning-for-xattr  do not warn about errors when reading xattrs
 """
 o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
@@ -234,7 +235,7 @@ if opt.update:
     if not extra:
         o.fatal('update mode (-u) requested but no paths given')
     for (rp,path) in paths:
-        update_index(rp, excluded_paths)
+        update_index(rp, excluded_paths, opt.suppress_warning_for_xattr)
 
 if opt['print'] or opt.status or opt.modified:
     for (name, ent) in index.Reader(indexfile).filter(extra or ['']):

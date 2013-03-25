@@ -8,7 +8,7 @@ import errno, os, sys, stat, time, platform, pwd, grp
 from cStringIO import StringIO
 from bup import vint, xstat
 from bup.drecurse import recursive_dirlist
-from bup.helpers import add_error, mkdirp, log, is_superuser
+from bup.helpers import add_error, mkdirp, log, is_superuser, debug1
 from bup.helpers import pwd_from_uid, pwd_from_name, grp_from_gid, grp_from_name
 from bup.xstat import utime, lutime
 
@@ -570,13 +570,16 @@ class Metadata:
 
     ## Linux extended attributes (getfattr(1), setfattr(1))
 
-    def _add_linux_xattr(self, path, st):
+    def _add_linux_xattr(self, path, st, suppress_warning_for_xattr):
         if not xattr: return
         try:
             self.linux_xattr = xattr.get_all(path, nofollow=True)
         except EnvironmentError, e:
             if e.errno != errno.EOPNOTSUPP:
-                raise
+                if suppress_warning_for_xattr:
+                    debug1('%s: cannot read xattrs: %s\n' % (path, str(e)))
+                else:
+                    add_error('%s: cannot read xattrs: %s' % (path, str(e)))
 
     def _same_linux_xattr(self, other):
         """Return true or false to indicate similarity in the hardlink sense."""
@@ -738,7 +741,8 @@ class Metadata:
 
 
 def from_path(path, statinfo=None, archive_path=None,
-              save_symlinks=True, hardlink_target=None):
+              save_symlinks=True, hardlink_target=None,
+              suppress_warning_for_xattr=False):
     result = Metadata()
     result.path = archive_path
     st = statinfo or xstat.lstat(path)
@@ -749,7 +753,7 @@ def from_path(path, statinfo=None, archive_path=None,
     result._add_hardlink_target(hardlink_target)
     result._add_posix1e_acl(path, st)
     result._add_linux_attr(path, st)
-    result._add_linux_xattr(path, st)
+    result._add_linux_xattr(path, st, suppress_warning_for_xattr)
     return result
 
 

@@ -22,6 +22,7 @@ strip      strips the path to every filename given
 strip-path= path-prefix to be stripped when saving
 graft=     a graft point *old_path*=*new_path* (can be used more than once)
 #,compress=  set compression level to # (0-9, 9 is highest) [1]
+suppress-warning-for-xattr  do not warn about errors when reading xattrs
 """
 o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
@@ -297,7 +298,7 @@ for (transname,ent) in r.filter(extra, wantrecurse=wantrecurse_during):
         first_root = dirp[0]
         # Not indexed, so just grab the FS metadata or use empty metadata.
         try:
-           meta = metadata.from_path(fs_path) if fs_path else metadata.Metadata()
+           meta = metadata.from_path(fs_path, suppress_warning_for_xattr=opt.suppress_warning_for_xattr) if fs_path else metadata.Metadata()
         except (OSError, IOError), e:
             add_error(e)
             lastskip_name = dir_name
@@ -315,7 +316,7 @@ for (transname,ent) in r.filter(extra, wantrecurse=wantrecurse_during):
         dir_name, fs_path = path_component
         # Not indexed, so just grab the FS metadata or use empty metadata.
         try:
-           meta = metadata.from_path(fs_path) if fs_path else metadata.Metadata()
+           meta = metadata.from_path(fs_path, suppress_warning_for_xattr=opt.suppress_warning_for_xattr) if fs_path else metadata.Metadata()
         except (OSError, IOError), e:
             add_error(e)
             lastskip_name = dir_name
@@ -392,7 +393,7 @@ for (transname,ent) in r.filter(extra, wantrecurse=wantrecurse_during):
             sort_key = git.shalist_item_sort_key((ent.mode, file, id))
             hlink = find_hardlink_target(hlink_db, ent)
             try:
-                meta = metadata.from_path(ent.name, hardlink_target=hlink)
+                meta = metadata.from_path(ent.name, hardlink_target=hlink, suppress_warning_for_xattr=opt.suppress_warning_for_xattr)
             except (OSError, IOError), e:
                 add_error(e)
                 lastskip_name = ent.name

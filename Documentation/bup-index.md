@@ -177,6 +177,10 @@ does, due to the accommodations described above.
 :   increase log output during update (can be used more
     than once).  With one `-v`, print each directory as it
     is updated; with two `-v`, print each file too.
+ 
+\--suppress-warning-for-xattrs
+:   do not warn about errors when reading the extended attributes
+    of a path.
 
 
 # EXAMPLE
