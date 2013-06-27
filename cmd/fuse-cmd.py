@@ -54,9 +54,10 @@ def cache_get(top, path):
     
 
 class BupFs(fuse.Fuse):
-    def __init__(self, top):
+    def __init__(self, top, use_metadata=False):
         fuse.Fuse.__init__(self)
         self.top = top
+        self._use_metadata = use_metadata
     
     def getattr(self, path):
         log('--getattr(%r)\n' % path)
@@ -116,6 +117,7 @@ bup fuse [-d] [-f] <mountpoint>
 d,debug   increase debug level
 f,foreground  run in foreground
 o,allow-other allow other users to access the filesystem
+m,no-metadata do not load metadata (metadata is used by default)
 """
 o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
@@ -125,7 +127,7 @@ if len(extra) != 1:
 
 git.check_repo_or_die()
 top = vfs.RefList(None)
-f = BupFs(top)
+f = BupFs(top, opt.metadata)
 f.fuse_args.mountpoint = extra[0]
 if opt.debug:
     f.fuse_args.add('debug')
