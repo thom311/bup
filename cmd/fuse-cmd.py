@@ -145,25 +145,26 @@ f,foreground  run in foreground
 o,allow-other allow other users to access the filesystem
 m,no-metadata do not load metadata (metadata is used by default)
 """
-o = options.Options(optspec)
-(opt, flags, extra) = o.parse(sys.argv[1:])
+if __name__ == '__main__':
+    o = options.Options(optspec)
+    (opt, flags, extra) = o.parse(sys.argv[1:])
 
-if len(extra) != 1:
-    o.fatal("exactly one argument expected")
+    if len(extra) != 1:
+        o.fatal("exactly one argument expected")
 
-git.check_repo_or_die()
-top = vfs.RefList(None)
-f = BupFs(top, opt.metadata)
-f.fuse_args.mountpoint = extra[0]
-if opt.debug:
-    f.fuse_args.add('debug')
-if opt.metadata:
-    f.fuse_args.add('use_ino')
-if opt.foreground:
-    f.fuse_args.setmod('foreground')
-print f.multithreaded
-f.multithreaded = False
-if opt.allow_other:
-    f.fuse_args.add('allow_other')
+    git.check_repo_or_die()
+    top = vfs.RefList(None)
+    f = BupFs(top, opt.metadata)
+    f.fuse_args.mountpoint = extra[0]
+    if opt.debug:
+        f.fuse_args.add('debug')
+    if opt.metadata:
+        f.fuse_args.add('use_ino')
+    if opt.foreground:
+        f.fuse_args.setmod('foreground')
+    print f.multithreaded
+    f.multithreaded = False
+    if opt.allow_other:
+        f.fuse_args.add('allow_other')
 
-f.main()
+    f.main()
