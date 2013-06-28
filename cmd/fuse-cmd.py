@@ -29,23 +29,24 @@ class Stat(fuse.Stat):
 
 cache = {}
 def cache_get(top, path):
+    log('cache_get>> %r\n' % path)
     parts = path.split('/')
     cache[('',)] = top
     c = None
     max = len(parts)
-    #log('cache: %r\n' % cache.keys())
+    log('cache: %r\n' % cache.keys())
     for i in range(max):
         pre = parts[:max-i]
-        #log('cache trying: %r\n' % pre)
+        log('cache trying: %r\n' % pre)
         c = cache.get(tuple(pre))
         if c:
             rest = parts[max-i:]
             for r in rest:
-                #log('resolving %r from %r\n' % (r, c.fullname()))
+                log('cache_get: resolving %r from %r\n' % (r, c.fullname()))
                 c = c.lresolve(r)
                 pre.append(r)
                 key = tuple(pre)
-                #log('saving: %r\n' % (key,))
+                log('saving: %r << %r\n' % ((key,), c.fullname()))
                 cache[key] = c
             break
     assert(c)
@@ -70,7 +71,9 @@ class BupFs(fuse.Fuse):
             st.st_ctime = node.ctime
             st.st_atime = node.atime
             return st
-        except vfs.NoSuchFile:
+        except vfs.NoSuchFile, e:
+            print("EXCEPTION WHILE BupFs/cache_get>>" + str(e))
+            raise
             return -errno.ENOENT
 
     def readdir(self, path, offset):
