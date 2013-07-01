@@ -27,41 +27,19 @@ class Stat(fuse.Stat):
         self.st_rdev = 0
 
 
-cache = {}
-def cache_get(top, path):
-    parts = path.split('/')
-    cache[('',)] = top
-    c = None
-    max = len(parts)
-    #log('cache: %r\n' % cache.keys())
-    for i in range(max):
-        pre = parts[:max-i]
-        #log('cache trying: %r\n' % pre)
-        c = cache.get(tuple(pre))
-        if c:
-            rest = parts[max-i:]
-            for r in rest:
-                #log('resolving %r from %r\n' % (r, c.fullname()))
-                c = c.lresolve(r)
-                pre.append(r)
-                key = tuple(pre)
-                #log('saving: %r\n' % (key,))
-                cache[key] = c
-            break
-    assert(c)
-    return c
-        
-    
-
 class BupFs(fuse.Fuse):
     def __init__(self, top):
         fuse.Fuse.__init__(self)
         self.top = top
+        self._cache = vfs.PathLookupCache(top)
+
+    def lresolve(self, path):
+        return self._cache.lresolve(path)
     
     def getattr(self, path):
         log('--getattr(%r)\n' % path)
         try:
-            node = cache_get(self.top, path)
+            node = self.lresolve(path)
             st = Stat()
             st.st_mode = node.mode
             st.st_nlink = node.nlinks()
@@ -75,7 +53,7 @@ class BupFs(fuse.Fuse):
 
     def readdir(self, path, offset):
         log('--readdir(%r)\n' % path)
-        node = cache_get(self.top, path)
+        node = self.lresolve(path)
         yield fuse.Direntry('.')
         yield fuse.Direntry('..')
         for sub in node.subs():
@@ -83,12 +61,12 @@ class BupFs(fuse.Fuse):
 
     def readlink(self, path):
         log('--readlink(%r)\n' % path)
-        node = cache_get(self.top, path)
+        node = self.lresolve(path)
         return node.readlink()
 
     def open(self, path, flags):
         log('--open(%r)\n' % path)
-        node = cache_get(self.top, path)
+        node = self.lresolve(path)
         accmode = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
         if (flags & accmode) != os.O_RDONLY:
             return -errno.EACCES
@@ -99,7 +77,7 @@ class BupFs(fuse.Fuse):
 
     def read(self, path, size, offset):
         log('--read(%r)\n' % path)
-        n = cache_get(self.top, path)
+        n = self.lresolve(path)
         o = n.open()
         o.seek(offset)
         return o.read(size)

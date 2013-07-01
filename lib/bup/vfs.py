@@ -162,6 +162,43 @@ class _FileReader(object):
         pass
 
 
+class PathLookupCache:
+    """Cache for lookup of nodes by path. Does not only cache the requested node,
+    but also every parent node, so that future lookups to siblings are faster as well."""
+    def __init__(self, top):
+        self.top = top
+        self.clear()
+
+    def clear(self):
+        """Clear the lookup cache"""
+        self._cache = { ('',): self.top }
+
+    def lresolve(self, path):
+        """Resolve the path. Regardless of whether path start with a / or not,
+        the path will be rooted at the top node. The node itself and all parent
+        nodes are cached."""
+        parts = path.split('/')
+        c = None
+        max = len(parts)
+        #log('cache: %r\n' % self._cache.keys())
+        for i in range(max):
+            pre = parts[:max-i]
+            #log('cache trying: %r\n' % pre)
+            c = self._cache.get(tuple(pre))
+            if c:
+                rest = parts[max-i:]
+                for r in rest:
+                    #log('resolving %r from %r\n' % (r, c.fullname()))
+                    c = c.lresolve(r)
+                    pre.append(r)
+                    key = tuple(pre)
+                    #log('saving: %r\n' % (key,))
+                    self._cache[key] = c
+                break
+        assert(c)
+        return c
+
+
 class Node:
     """Base class for file representation."""
     def __init__(self, parent, name, mode, hash):
