@@ -44,8 +44,7 @@ def cache_get(top, path):
             for r in rest:
                 log('cache_get: resolving %r from %r\n' % (r, c.fullname()))
                 c = c.lresolve(r)
-                pre.append(r)
-                key = tuple(pre)
+                key = tuple(pre + [r])
                 log('saving: %r << %r\n' % ((key,), c.fullname()))
                 cache[key] = c
             break
