@@ -724,6 +724,9 @@ class Dir(Node):
             self._mksubs()
         if not self._bupm:
             self._metadata = None
+            for sub in self:
+                if not stat.S_ISDIR(sub.mode):
+                    sub._metadata = None
             return
         meta_stream = self._bupm.open()
         self._metadata = metadata.Metadata.read(meta_stream)
